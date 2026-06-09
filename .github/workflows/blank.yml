@@ -1,6 +1,9 @@
 name: Build KernelSU Next for Motorola Kiev
 on:
-  workflow_dispatch: # Permet de lancer la compilation manuellement d'un clic
+  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -13,9 +16,11 @@ jobs:
 
     - name: Télécharger les sources du noyau
       run: |
-        # REMPLACEZ l'URL et la branche (-b) par celles de PixelOS pour votre modèle
-        git clone https://github.com -b sixteen --depth=1 kernel-source
+        # Clônage sans spécifier de branche pour éviter l'erreur 128 si "sixteen" n'existe pas
+        git clone https://github.com --depth=1 kernel-source
         cd kernel-source
+        # Affiche la branche actuelle dans les logs pour vérification
+        git branch
 
     - name: Injecter KernelSU Next automatiquement
       run: |
@@ -25,9 +30,9 @@ jobs:
     - name: Configurer les options du noyau (defconfig)
       run: |
         cd kernel-source
-        # Remplacez kiev_defconfig par le nom exact du fichier config de votre modèle
-        # Vous pouvez le trouver dans kernel-source/arch/arm64/configs/
+        # Ajustement automatique du chemin de configuration Qualcomm standard
         export CONFIG_FILE=arch/arm64/configs/vendor/kiev_defconfig
+        [ -f $CONFIG_FILE ] || CONFIG_FILE=arch/arm64/configs/kiev_defconfig
         echo "CONFIG_KSU=y" >> $CONFIG_FILE
         echo "CONFIG_KSU_MANUAL_HOOK=y" >> $CONFIG_FILE
 
@@ -36,8 +41,7 @@ jobs:
         cd kernel-source
         export ARCH=arm64
         export SUBARCH=arm64
-        export HEADER_ARCH=arm64
-        make O=out vendor/kiev_defconfig
+        make O=out vendor/kiev_defconfig || make O=out kiev_defconfig
         make -j$(nproc --all) O=out ARCH=arm64 CC=clang CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu-
 
     - name: Sauvegarder les fichiers compilés (Artifacts)
