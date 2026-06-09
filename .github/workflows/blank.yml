@@ -1,0 +1,49 @@
+name: Build KernelSU Next for Motorola Kiev
+on:
+  workflow_dispatch: # Permet de lancer la compilation manuellement d'un clic
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Installer les dépendances Linux
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y bc build-essential libncurses5-dev libssl-dev cython3 bison flex libelf-dev clang lld
+
+    - name: Télécharger les sources du noyau
+      run: |
+        # REMPLACEZ l'URL et la branche (-b) par celles de PixelOS pour votre modèle
+        git clone https://github.com -b sixteen --depth=1 kernel-source
+        cd kernel-source
+
+    - name: Injecter KernelSU Next automatiquement
+      run: |
+        cd kernel-source
+        curl -LSs "https://githubusercontent.com" | bash -s main
+
+    - name: Configurer les options du noyau (defconfig)
+      run: |
+        cd kernel-source
+        # Remplacez kiev_defconfig par le nom exact du fichier config de votre modèle
+        # Vous pouvez le trouver dans kernel-source/arch/arm64/configs/
+        export CONFIG_FILE=arch/arm64/configs/vendor/kiev_defconfig
+        echo "CONFIG_KSU=y" >> $CONFIG_FILE
+        echo "CONFIG_KSU_MANUAL_HOOK=y" >> $CONFIG_FILE
+
+    - name: Lancer la compilation du noyau
+      run: |
+        cd kernel-source
+        export ARCH=arm64
+        export SUBARCH=arm64
+        export HEADER_ARCH=arm64
+        make O=out vendor/kiev_defconfig
+        make -j$(nproc --all) O=out ARCH=arm64 CC=clang CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu-
+
+    - name: Sauvegarder les fichiers compilés (Artifacts)
+      uses: actions/upload-artifact@v4
+      with:
+        name: KernelSU-Next-Kiev-Image
+        path: |
+          kernel-source/out/arch/arm64/boot/Image.gz-dtb
+          kernel-source/out/arch/arm64/boot/dtbo.img
