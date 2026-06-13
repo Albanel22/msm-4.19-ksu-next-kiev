@@ -41,8 +41,21 @@ jobs:
         cd kernel-source
         export ARCH=arm64
         export SUBARCH=arm64
-        make O=out vendor/kiev_defconfig || make O=out kiev_defconfig
-        make -j$(nproc --all) O=out ARCH=arm64 CC=clang CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu-
+    - name: Forcer la configuration Motorola Kiev
+      run: |
+          cd arch/arm64/configs/
+          for f in *defconfig vendor/*config; do
+            if [ -f "$f" ]; then
+              echo "CONFIG_KPROBES=y" >> "$f"
+              echo "CONFIG_HAVE_KPROBES=y" >> "$f"
+              echo "CONFIG_KPROBE_EVENTS=y" >> "$f"
+              echo "CONFIG_OVERLAY_FS=y" >> "$f"
+              echo "CONFIG_ASSIST_SU=y" >> "$f"
+            fi
+          done
+          cd ../../.. 
+     make O=out vendor/kiev_defconfig || make O=out kiev_defconfig
+     make -j$(nproc --all) O=out ARCH=arm64 CC=clang CLANG_TRIPLE=aarch64-linux-gnu- CROSS_COMPILE=aarch64-linux-gnu-
 
     - name: Sauvegarder les fichiers compilés (Artifacts)
       uses: actions/upload-artifact@v4
